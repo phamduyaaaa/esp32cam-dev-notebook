@@ -1,18 +1,20 @@
 #include <WiFi.h>
-#include <WebServer.h>
 #include "esp_camera.h"
+#include <WebServer.h>
 
-// =================== WiFi Config ===================
+// ==== WiFi config ====
 const char* ssid = "I-robot Lab_5G";
 const char* password = "irobotlab";
+
 WebServer server(80);
 
-// =================== Camera Pinout ===================
+// ==== Pin config cho module AI Thinker ====
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
 #define SIOD_GPIO_NUM     26
 #define SIOC_GPIO_NUM     27
+
 #define Y9_GPIO_NUM       35
 #define Y8_GPIO_NUM       34
 #define Y7_GPIO_NUM       39
@@ -25,29 +27,21 @@ WebServer server(80);
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-// =================== Capture handler ===================
-void handleCapture() {
-  camera_fb_t *fb = esp_camera_fb_get();
+void handle_capture() {
+  camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) {
     server.send(500, "text/plain", "Camera capture failed");
     return;
   }
 
-  // Gửi ảnh JPEG trực tiếp
-  server.sendHeader("Content-Type", "image/jpeg");
-  server.sendHeader("Content-Length", String(fb->len));
-  server.sendHeader("Connection", "close");
-  server.send(200);
-  WiFiClient client = server.client();
-  client.write(fb->buf, fb->len);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send_P(200, "image/jpeg", (const char *)fb->buf, fb->len);
   esp_camera_fb_return(fb);
 }
 
-// =================== Setup ===================
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(true);
-  Serial.println();
+  Serial.println("Booting...");
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -88,21 +82,18 @@ void setup() {
   }
 
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("\nWiFi connected!");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-
-  // chỉ còn duy nhất 1 endpoint
-  server.on("/capture", handleCapture);
-
-  server.begin();
   Serial.println("Ready! Send GET /capture to take photo.");
+
+  server.on("/capture", handle_capture);
+  server.begin();
 }
 
 void loop() {
